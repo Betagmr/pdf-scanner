@@ -1,0 +1,30 @@
+[project]
+name = "Recommeder-System"
+version = "0.0.1"
+requires-python = ">3.10"
+dependencies = [
+    "numpy==1.26.0",
+    "pandas",
+    "matplotlib",
+    "opencv-python",
+]
+
+[project.optional-dependencies]
+dev = ["black", "ruff", "isort", "ipykernel"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 100
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+ignore = [
+    "E501", # line too long
+    "E731", # Do not assign a `lambda` expression, use a `def`
+    "E712", # comparison to True should be 'if cond is True:' or 'if cond:'
+]
