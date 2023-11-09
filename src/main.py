@@ -1,32 +1,35 @@
 import cv2
 import numpy as np
 from pathlib import Path
-from imutils.perspective import four_point_transform
+from imutils.perspective import four_point_transform  # type: ignore
 
 
 def main():
-    img = cv2.imread("imagenes\\foto5.jpg")
+    img = cv2.imread("imagenes/foto4.jpg")
 
     # Obtenemos el contorno.
     document_contour = scanDetection(img)
 
-    # Recortamos la imagen.
-    warped = four_point_transform(img.copy(), document_contour.reshape(4, 2))
-    cv2.imshow("Warped", warped)
+    wraped = four_point_transform(img.copy(), document_contour.reshape(4, 2))
+    processed = image_processing(wraped)
 
-    # Procesamos la imagen.
-    processed = image_processing(warped)
-    # Esto quita las líneas negras y tal. Podemos modficarlo en un futuro.
-    # processed = processed[10 : processed.shape[0] - 10, 10 : processed.shape[1] - 10]
-    cv2.imshow("Processed", processed)
+    print(processed.shape)
+    print(processed)
+
+    cv2.imshow("Processed", cv2.pyrDown(cv2.pyrDown(processed)))
+    cv2.moveWindow("Processed", 1000, 1)
+
+    # cv2.imshow("Wraped", cv2.pyrDown(cv2.pyrDown(wraped)))
+    # cv2.moveWindow("Wraped", 1000, 0)
 
     img = cv2.pyrDown(img)
-    img = cv2.pyrDown(img)
+    # img = cv2.pyrDown(img)
     img = cv2.pyrDown(img)
     cv2.imshow("foto1", img)
+    cv2.moveWindow("foto1", 0, 1)
     cv2.waitKey(0)
 
-    cv2.imwrite("prueba1.jpg", processed)
+    # cv2.imwrite("prueba1.jpg", processed)
 
 
 def scanDetection(img):
@@ -45,22 +48,22 @@ def scanDetection(img):
     contours, _ = cv2.findContours(threshold, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
 
-    max_area = 0
     # Para cada contorno, obtenemos el área mayor.
+    max_area = 0
     for contour in contours:
-        # cv2.drawContours(img, contour, -1, (0, 255, 0), 3)
-
         area = cv2.contourArea(contour)
-        if area > 1000:
-            peri = cv2.arcLength(contour, True)
-            approx = cv2.approxPolyDP(contour, 0.015 * peri, True)
-            if area > max_area:
-                document_contour = approx
-                max_area = area
+        if area > 1000 and area > max_area:
+            document_contour = contour
+            max_area = area
 
     # Se dibuja el contorno.
-    cv2.drawContours(img, [document_contour], -1, (0, 255, 0), 3)
-    return document_contour
+    rect = cv2.minAreaRect(document_contour)
+    box = np.int0(cv2.boxPoints(rect))
+
+    cv2.drawContours(img, [box], 0, (0, 0, 255), 2)
+    cv2.drawContours(img, [document_contour], -1, (255, 0, 0), 3)
+
+    return box
 
 
 def image_processing(image):
