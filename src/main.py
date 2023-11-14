@@ -5,26 +5,84 @@ from imutils.perspective import four_point_transform  # type: ignore
 
 
 def main():
-    image_path = Path() / "imagenes" / "foto5.jpg"
-    img = cv2.imread(image_path.as_posix())
+    for i in range(1, 6):
+        image_path = Path() / "imagenes" / f"foto{i}.jpg"
+        img = cv2.imread(image_path.as_posix())
 
-    # Obtenemos el contorno.
-    pape_contour, document_contour = scanDetection(img)
-    processed = image_processing(img, pape_contour, document_contour)
+        # Obtenemos el contorno.
+        deleted_shadow = delete_shadow(img)
+        pape_contour, document_contour = scanDetection(img)
+        processed = image_processing(deleted_shadow, pape_contour, document_contour)
+
+        render_images(img, processed)
 
     cv2.imwrite("prueba1.jpg", processed)
-    render_images(img, processed)
+
+
+def main_camera():
+    vid = cv2.VideoCapture(0)
+
+    while True:
+        # Capture the video frame
+        # by frame
+        ret, frame = vid.read()
+
+        pape_contour, document_contour = scanDetection(frame)
+
+        # render_images(frame, processed)
+        cv2.imshow("frame", frame)
+        cv2.moveWindow("frame", 0, 1)
+
+        key = cv2.waitKey(1)
+        if key == ord("q"):
+            break
+        elif key == ord("s"):
+            processed = image_processing(frame, pape_contour, document_contour)
+            cv2.imwrite("prueba1.jpg", processed)
+
+    # After the loop release the cap object
+    vid.release()
+    # Destroy all the windows
+    cv2.destroyAllWindows()
 
 
 def render_images(img, processed):
     # Se muestra la imagen procesada
-    cv2.imshow("Processed", img_downscale(processed, 2))
-    cv2.moveWindow("Processed", 1000, 1)
+    window_processed = "Processed"
 
-    # Se muestra la imagen original
-    cv2.imshow("foto1", img_downscale(img, 3))
-    cv2.moveWindow("foto1", 0, 1)
+    gray = 255 * (processed < 128).astype(np.uint8)
+    coords = cv2.findNonZero(gray)
+    x, y, w, h = cv2.boundingRect(coords)
+    rect = processed[y : y + h, x : x + w]
+    constant = cv2.copyMakeBorder(
+        rect, 100, 100, 100, 100, cv2.BORDER_CONSTANT, value=[255, 255, 255]
+    )
+
+    cv2.imshow(window_processed, img_downscale(constant, 2))
+    cv2.moveWindow(window_processed, 1000, 1)
+
+    window_original = "Original"
+    cv2.imshow(window_original, img_downscale(img, 2))
+    cv2.moveWindow(window_original, 0, 1)
+
     cv2.waitKey(0)
+
+
+def delete_shadow(img):
+    rgb_planes = cv2.split(img)
+    result_norm_planes = [process_plane(plane) for plane in rgb_planes]
+    return cv2.merge(result_norm_planes)
+
+
+def process_plane(plane):
+    dilated_img = cv2.dilate(plane, np.ones((7, 7), np.uint8))
+    bg_img = cv2.medianBlur(dilated_img, 21)
+    diff_img = 255 - cv2.absdiff(plane, bg_img)
+    norm_img = cv2.normalize(
+        diff_img, None, alpha=0, beta=160, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1
+    )
+
+    return norm_img
 
 
 def get_img_contour(img):
@@ -65,7 +123,9 @@ def scanDetection(img):
     # Se dibuja el contorno.
     rect = cv2.minAreaRect(document_contour)
     box = np.intp(cv2.boxPoints(rect))
-    # cv2.drawContours(img, [document_contour], 0, (255, 255, 255), 100)
+
+    cv2.drawContours(img, [box], 0, (0, 0, 255), 10)
+    cv2.drawContours(img, [document_contour], 0, (255, 0, 0), 10)
 
     return box, document_contour
 
@@ -74,13 +134,14 @@ def image_processing(image, page_contour, document_contour):
     aux_img = image.copy()
     cv2.fillPoly(aux_img, [page_contour], (255, 255, 255))
     cv2.fillPoly(aux_img, [document_contour], (0, 0, 0))
-    # cv2.drawContours(aux_img, [document_contour], 0, (255, 255, 255), 150)
+    cv2.drawContours(aux_img, [document_contour], 0, (255, 255, 255), 100)
 
     result = cv2.add(aux_img, image)
     wrapped = four_point_transform(result.copy(), page_contour.reshape(4, 2))
 
     gray = cv2.cvtColor(wrapped, cv2.COLOR_BGR2GRAY)
-    _, threshold = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY)
+    blur = cv2.GaussianBlur(gray, (3, 3), 0)
+    _, threshold = cv2.threshold(blur, 128, 255, cv2.THRESH_BINARY)
 
     return threshold
 
