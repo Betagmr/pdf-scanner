@@ -2,6 +2,11 @@ import cv2
 import numpy as np
 from pathlib import Path
 from imutils.perspective import four_point_transform  # type: ignore
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from io import BytesIO
+from PIL import Image
 
 
 def main():
@@ -16,9 +21,30 @@ def main():
     processed = image_processing(removed_shadow, pape_contour, document_contour)
     cleaned = crop_clean_image(processed)
 
-    render_images(img, cleaned)
+    # render_images(img, cleaned)
 
-    cv2.imwrite(f"prueba{i}.jpg", cleaned)
+    # cv2.imwrite(f"prueba{i}.jpg", cleaned)
+    create_pdf_with_image(cleaned, f"prueba{i}.pdf")
+
+
+def create_pdf_with_image(image, output):
+    # Obtenemos las dimensiones de la imagen.
+    img_height, img_width = image.shape
+
+    # Creamos un lienzo.
+    pdf_canvas = canvas.Canvas(output, pagesize=(img_width, img_height))
+
+    # Convertimos la matriz NumPy en un objeto BytesIO.
+    image_stream = BytesIO()
+    pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    pil_image.save(image_stream, format="PNG")
+    image_stream.seek(0)
+
+    # Dibujamos la imagen en el pdf.
+    pdf_canvas.drawImage(ImageReader(image_stream), 0, 0, width=img_width, height=img_height)
+
+    # Guardamos el pdf.
+    pdf_canvas.save()
 
 
 def render_images(img, processed):
