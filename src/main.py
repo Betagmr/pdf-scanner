@@ -5,64 +5,31 @@ from imutils.perspective import four_point_transform  # type: ignore
 
 
 def main():
-    for i in range(1, 6):
-        image_path = Path() / "imagenes" / f"foto{i}.jpg"
-        img = cv2.imread(image_path.as_posix())
+    i = 1
+    image_path = Path() / "imagenes" / f"foto{i}.jpg"
+    img = cv2.imread(image_path.as_posix())
+    img = img_downscale(img, 1)
 
-        # Obtenemos el contorno.
-        deleted_shadow = delete_shadow(img)
-        pape_contour, document_contour = scanDetection(img)
-        processed = image_processing(deleted_shadow, pape_contour, document_contour)
+    # Obtenemos el contorno.
+    removed_shadow = delete_shadow(img)
+    pape_contour, document_contour = scanDetection(img)
+    processed = image_processing(removed_shadow, pape_contour, document_contour)
+    cleaned = crop_clean_image(processed)
 
-        render_images(img, processed)
+    render_images(img, cleaned)
 
-    cv2.imwrite("prueba1.jpg", processed)
-
-
-def main_camera():
-    vid = cv2.VideoCapture(0)
-
-    while True:
-        # Capture the video frame
-        # by frame
-        ret, frame = vid.read()
-
-        pape_contour, document_contour = scanDetection(frame)
-
-        # render_images(frame, processed)
-        cv2.imshow("frame", frame)
-        cv2.moveWindow("frame", 0, 1)
-
-        key = cv2.waitKey(1)
-        if key == ord("q"):
-            break
-        elif key == ord("s"):
-            processed = image_processing(frame, pape_contour, document_contour)
-            cv2.imwrite("prueba1.jpg", processed)
-
-    # After the loop release the cap object
-    vid.release()
-    # Destroy all the windows
-    cv2.destroyAllWindows()
+    cv2.imwrite(f"prueba{i}.jpg", cleaned)
 
 
 def render_images(img, processed):
     # Se muestra la imagen procesada
     window_processed = "Processed"
 
-    gray = 255 * (processed < 128).astype(np.uint8)
-    coords = cv2.findNonZero(gray)
-    x, y, w, h = cv2.boundingRect(coords)
-    rect = processed[y : y + h, x : x + w]
-    constant = cv2.copyMakeBorder(
-        rect, 100, 100, 100, 100, cv2.BORDER_CONSTANT, value=[255, 255, 255]
-    )
-
-    cv2.imshow(window_processed, img_downscale(constant, 2))
+    cv2.imshow(window_processed, processed)
     cv2.moveWindow(window_processed, 1000, 1)
 
     window_original = "Original"
-    cv2.imshow(window_original, img_downscale(img, 2))
+    cv2.imshow(window_original, img)
     cv2.moveWindow(window_original, 0, 1)
 
     cv2.waitKey(0)
@@ -124,7 +91,7 @@ def scanDetection(img):
     rect = cv2.minAreaRect(document_contour)
     box = np.intp(cv2.boxPoints(rect))
 
-    cv2.drawContours(img, [box], 0, (0, 0, 255), 10)
+    cv2.drawContours(img, [box], 0, (0, 255, 0), 10)
     cv2.drawContours(img, [document_contour], 0, (255, 0, 0), 10)
 
     return box, document_contour
@@ -134,17 +101,39 @@ def image_processing(image, page_contour, document_contour):
     aux_img = image.copy()
     cv2.fillPoly(aux_img, [page_contour], (255, 255, 255))
     cv2.fillPoly(aux_img, [document_contour], (0, 0, 0))
-    cv2.drawContours(aux_img, [document_contour], 0, (255, 255, 255), 100)
+    cv2.drawContours(aux_img, [document_contour], 0, (255, 255, 255), 0)
 
     result = cv2.add(aux_img, image)
     wrapped = four_point_transform(result.copy(), page_contour.reshape(4, 2))
 
     gray = cv2.cvtColor(wrapped, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (3, 3), 0)
-    _, threshold = cv2.threshold(blur, 128, 255, cv2.THRESH_BINARY)
+    # blur = cv2.GaussianBlur(gray, (3, 3), 0)
+    _, threshold = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY)
 
     return threshold
 
 
+def crop_clean_image(processed):
+    gray = 255 * (processed < 128).astype(np.uint8)
+    _, threshold = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    contours, _ = cv2.findContours(threshold, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < 50:
+            cv2.fillPoly(processed, [contour], (255, 255, 255))
+
+    coords = cv2.findNonZero(gray)
+
+    # get the rectangle that contains the contour
+    x, y, w, h = cv2.boundingRect(coords)
+
+    # crop the image
+    rect = processed[y : y + h, x : x + w]
+
+    return cv2.copyMakeBorder(rect, 15, 15, 15, 15, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+
+
 if __name__ == "__main__":
+    # main_camera()
     main()
