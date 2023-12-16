@@ -1,50 +1,35 @@
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
 from imutils.perspective import four_point_transform  # type: ignore
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
-from io import BytesIO
-from PIL import Image
+from pdf_parser import create_pdf_with_image
 
 
 def main():
-    i = 1
-    image_path = Path() / "imagenes" / f"foto{i}.jpg"
-    img = cv2.imread(image_path.as_posix())
-    img = img_downscale(img, 1)
+    all_images = []
+    for i in range(1, 6):
+        image_path = Path() / "imagenes" / f"foto{i}.jpg"
+        img = cv2.imread(image_path.as_posix())
+        all_images.append(process_image(img))
 
-    # Obtenemos el contorno.
+    create_pdf_with_image(all_images, "prueba.pdf")
+
+
+def rotate_image(imagen):
+    imagen_transpuesta = cv2.transpose(imagen)
+    imagen_rotada = cv2.flip(imagen_transpuesta, 1)
+
+    return imagen_rotada
+
+
+def process_image(img):
     removed_shadow = delete_shadow(img)
     pape_contour, document_contour = scanDetection(img)
     processed = image_processing(removed_shadow, pape_contour, document_contour)
     cleaned = crop_clean_image(processed)
 
-    # render_images(img, cleaned)
-
-    # cv2.imwrite(f"prueba{i}.jpg", cleaned)
-    create_pdf_with_image(cleaned, f"prueba{i}.pdf")
-
-
-def create_pdf_with_image(image, output):
-    # Obtenemos las dimensiones de la imagen.
-    img_height, img_width = image.shape
-
-    # Creamos un lienzo.
-    pdf_canvas = canvas.Canvas(output, pagesize=(img_width, img_height))
-
-    # Convertimos la matriz NumPy en un objeto BytesIO.
-    image_stream = BytesIO()
-    pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    pil_image.save(image_stream, format="PNG")
-    image_stream.seek(0)
-
-    # Dibujamos la imagen en el pdf.
-    pdf_canvas.drawImage(ImageReader(image_stream), 0, 0, width=img_width, height=img_height)
-
-    # Guardamos el pdf.
-    pdf_canvas.save()
+    return cleaned
 
 
 def render_images(img, processed):
@@ -127,7 +112,7 @@ def image_processing(image, page_contour, document_contour):
     aux_img = image.copy()
     cv2.fillPoly(aux_img, [page_contour], (255, 255, 255))
     cv2.fillPoly(aux_img, [document_contour], (0, 0, 0))
-    cv2.drawContours(aux_img, [document_contour], 0, (255, 255, 255), 0)
+    cv2.drawContours(aux_img, [document_contour], 0, (255, 255, 255), 100)
 
     result = cv2.add(aux_img, image)
     wrapped = four_point_transform(result.copy(), page_contour.reshape(4, 2))
@@ -157,7 +142,9 @@ def crop_clean_image(processed):
     # crop the image
     rect = processed[y : y + h, x : x + w]
 
-    return cv2.copyMakeBorder(rect, 15, 15, 15, 15, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+    return cv2.copyMakeBorder(
+        rect, 15, 15, 15, 15, cv2.BORDER_CONSTANT, value=[255, 255, 255]
+    )
 
 
 if __name__ == "__main__":
