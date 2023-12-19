@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from random import randint
 
 import cv2
 import numpy as np
@@ -10,7 +9,7 @@ from pdf_parser import create_pdf_with_image
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Subir y Guardar Imágenes",
+    page_title="Escáner de Imagen a PDF",
     page_icon=":camera:",
     layout="wide",
 )
@@ -35,6 +34,7 @@ def upload_image(n_images):
                 image = cv2.imdecode(file_bytes, 1)
 
                 cv2.imwrite(str(temp_dir / f"foto{n_images + 1}.jpg"), image)
+        st.rerun()
 
 
 def create_sidebar(list_of_paths, list_of_images):
@@ -64,12 +64,12 @@ def create_sidebar(list_of_paths, list_of_images):
 
         result = cv2.cvtColor(rotated_img, cv2.COLOR_BGR2RGB)
         cv2.imwrite(img_path, result)
-        st.experimental_rerun()
+        st.rerun()
 
     if side_delete and select_index is not None:
         img_path = list_of_paths[image_index]
         os.remove(str(img_path))
-        st.experimental_rerun()
+        st.rerun()
 
     if side_button:
         new_list = [process_image(i) for i in list_of_images]
@@ -84,7 +84,7 @@ def load_image(image_path):
 
 # Función principal de la aplicación
 def main():
-    st.title("Aplicación de Carga y Guardado de Imágenes ::root")
+    st.title("Escáner de Imagen a PDF :camera: -> :book:")
 
     list_of_paths = [str(image_path) for image_path in temp_dir.glob("*")]
     list_of_images = [load_image(image_path) for image_path in list_of_paths]
