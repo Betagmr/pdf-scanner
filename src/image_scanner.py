@@ -25,11 +25,11 @@ def rotate_image(imagen):
 
 def process_image(img):
     removed_shadow = delete_shadow(img)
-    pape_contour, document_contour = scanDetection(img)
-    processed = image_processing(removed_shadow, pape_contour, document_contour)
-    cleaned = crop_clean_image(processed)
+    paper_contour, document_contour = scanDetection(img)
+    processed = image_processing(removed_shadow, paper_contour, document_contour)
+    # cleaned = crop_clean_image(processed)
 
-    return cleaned
+    return processed
 
 
 def render_images(img, processed):

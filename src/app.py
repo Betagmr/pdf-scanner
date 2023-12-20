@@ -4,7 +4,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import streamlit as st
-from main import process_image, rotate_image
+from image_scanner import process_image, rotate_image
 from pdf_parser import create_pdf_with_image
 
 # Configuración de la página

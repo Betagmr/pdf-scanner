@@ -1,9 +1,9 @@
 [project]
 name = "PDF-Document-Scanner"
 version = "0.0.1"
-requires-python = ">3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "numpy==1.26.0",
+    "numpy",
     "pandas",
     "matplotlib",
     "opencv-python",
